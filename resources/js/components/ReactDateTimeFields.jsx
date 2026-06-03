@@ -1,18 +1,18 @@
-import React from 'react';
-import { Field, TextInput } from './TextInput';
+import DatePicker from './forms/DatePicker';
+import TimePicker from './forms/TimePicker';
+import ImageUpload from './forms/ImageUpload';
+import SelectDropdown from './forms/SelectDropdown';
 
-export function DateField({ label = 'Tanggal', value, onChange, error }) {
-    return (
-        <Field label={label} error={error}>
-            <TextInput type="date" value={value || ''} onChange={(e) => onChange?.(e.target.value)} />
-        </Field>
-    );
+export function DateField(props) {
+    return <DatePicker {...props} />;
 }
 
-export function TimeField({ label = 'Jam', value, onChange, error }) {
-    return (
-        <Field label={label} error={error}>
-            <TextInput type="time" value={value || ''} onChange={(e) => onChange?.(e.target.value)} />
-        </Field>
-    );
+export function TimeField(props) {
+    return <TimePicker {...props} />;
 }
+
+export function SelectField(props) {
+    return <SelectDropdown {...props} />;
+}
+
+export { DatePicker, TimePicker, ImageUpload, SelectDropdown };

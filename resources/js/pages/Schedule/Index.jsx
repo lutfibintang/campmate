@@ -3,23 +3,69 @@ import { router, useForm } from '@inertiajs/react';
 import CampusLayout from '../../layouts/CampusLayout';
 import { Field, SelectInput, TextInput } from '../../components/TextInput';
 import { TimeField } from '../../components/ReactDateTimeFields';
+import DayPicker from '@/components/forms/DayPicker';
 
 const days = [
-    ['monday', 'Senin'], ['tuesday', 'Selasa'], ['wednesday', 'Rabu'], ['thursday', 'Kamis'], ['friday', 'Jumat'], ['saturday', 'Sabtu'], ['sunday', 'Minggu'],
+    ['monday', 'Senin'], ['tuesday', 'Selasa'], ['wednesday', 'Rabu'], ['thursday', 'Kamis'], ['friday', 'Jumat'], ['saturday', 'Sabtu'],
 ];
 
 export default function Index({ schedules = [] }) {
-    const { data, setData, post, processing, errors, reset } = useForm({ name: '', code: '', lecturer: '', color: '#c8d889', day_of_week: 'monday', start_time: '', end_time: '', room: '' });
+    const { data, setData, post, processing, errors, reset } = useForm({ name: '', code: '', lecturer: '', color: '#c8d889', day_of_week: '', start_time: '', end_time: '', room: '' });
     const submit = (e) => { e.preventDefault(); post('/schedule', { onSuccess: () => reset() }); };
     return (
         <CampusLayout title="Semester Schedule" subtitle="Masukin jadwal mata kuliah semester ini biar CampusMate bisa warning kalau sesi bentrok.">
             <form onSubmit={submit} className="cm-card cm-panel mb-7 grid gap-4 lg:grid-cols-3">
-                <Field label="Mata Kuliah" error={errors.name}><TextInput value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Basis Data" /></Field>
-                <Field label="Kode"><TextInput value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="INF-203" /></Field>
-                <Field label="Dosen"><TextInput value={data.lecturer} onChange={(e) => setData('lecturer', e.target.value)} placeholder="Nama dosen" /></Field>
-                <Field label="Hari"><SelectInput value={data.day_of_week} onChange={(e) => setData('day_of_week', e.target.value)}>{days.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</SelectInput></Field>
-                <TimeField label="Jam Mulai" value={data.start_time} onChange={(v) => setData('start_time', v)} error={errors.start_time} />
-                <TimeField label="Jam Selesai" value={data.end_time} onChange={(v) => setData('end_time', v)} error={errors.end_time} />
+                <Field label="Mata Kuliah" error={errors.name}>
+                    <TextInput
+                        value={data.name}
+                        onChange={(e) => setData('name', e.target.value)}
+                        placeholder="Masukan Nama Mata Kuliah"
+                    />
+                </Field>
+
+                <Field label="Kode">
+                    <TextInput
+                        value={data.code}
+                        onChange={(e) => setData('code', e.target.value)}
+                        placeholder="Masukan Kode Mata Kuliah"
+                    />
+                </Field>
+
+                <Field label="Dosen">
+                    <TextInput
+                        value={data.lecturer}
+                        onChange={(e) => setData('lecturer', e.target.value)}
+                        placeholder="Masukan Nama Dosen"
+                    />
+                </Field>
+
+                <DayPicker
+                    name="day_of_week"
+                    label="Hari"
+                    placeholder="Pilih hari"
+                    value={data.day_of_week}
+                    defaultValue={data.day_of_week}
+                    onChange={(value) => setData('day_of_week', value)}
+                    options={days.map(([value, label]) => ({
+                        value,
+                        label,
+                        icon: label.slice(0, 1),
+                    }))}
+                />
+
+                <TimeField
+                    label="Jam Mulai"
+                    value={data.start_time}
+                    onChange={(v) => setData('start_time', v)}
+                    error={errors.start_time}
+                />
+
+                <TimeField
+                    label="Jam Selesai"
+                    value={data.end_time}
+                    onChange={(v) => setData('end_time', v)}
+                    error={errors.end_time}
+                />
                 <Field label="Ruangan"><TextInput value={data.room} onChange={(e) => setData('room', e.target.value)} placeholder="A2.3" /></Field>
                 <div className="lg:col-span-2 flex items-end justify-end"><button disabled={processing} className="cm-btn cm-btn-primary">Tambah Jadwal</button></div>
             </form>
