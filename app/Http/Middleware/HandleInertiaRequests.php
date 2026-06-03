@@ -28,26 +28,30 @@ class HandleInertiaRequests extends Middleware
      * @return array<string, mixed>
      */
     public function share(Request $request): array
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        return [
-            ...parent::share($request),
-            'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'is_admin' => $user->isAdmin(),
-                    'profile_photo_url' => $user->profile_photo_url ?? null,
-                ] : null,
-            ],
-            'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'warning' => fn () => $request->session()->get('warning'),
-            ],
-        ];
-    }
+    return [
+        ...parent::share($request),
+        'auth' => [
+            'user' => $user ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'is_admin' => $user->isAdmin(),
+
+                'profile_photo' => $user->profile_photo,
+                'profile_photo_url' => $user->profile_photo
+                    ? asset('storage/'.$user->profile_photo)
+                    : null,
+            ] : null,
+        ],
+        'flash' => [
+            'success' => fn () => $request->session()->get('success'),
+            'error' => fn () => $request->session()->get('error'),
+            'warning' => fn () => $request->session()->get('warning'),
+        ],
+    ];
+}
 }
