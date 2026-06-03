@@ -8,7 +8,7 @@ use App\Models\SessionParticipant;
 use App\Models\StudySession;
 use App\Models\Subject;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StudySessionController extends Controller
@@ -17,7 +17,8 @@ class StudySessionController extends Controller
     {
         $now = now();
 
-        StudySession::whereIn('status', ['open', 'full'])
+        StudySession::query()
+            ->whereIn('status', ['open', 'full'])
             ->where(function ($query) use ($now) {
                 $query->where('session_date', '<', $now->toDateString())
                     ->orWhere(function ($q) use ($now) {
@@ -26,6 +27,48 @@ class StudySessionController extends Controller
                     });
             })
             ->update(['status' => 'done']);
+    }
+
+    private function ensureCanManage(Request $request, StudySession $studySession): void
+    {
+        $user = $request->user();
+
+        if (! $user?->isAdmin() && (int) $studySession->user_id !== (int) $user?->id) {
+            abort(403, 'Lu cuma bisa edit/hapus session milik lu sendiri. Admin boleh semuanya.');
+        }
+    }
+
+    private function validatedPayload(Request $request): array
+    {
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:100'],
+            'title' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string'],
+            'session_type' => ['required', 'in:offline,online,hybrid'],
+            'location' => ['nullable', 'string', 'max:160'],
+            'meeting_platform' => ['nullable', 'string', 'max:50'],
+            'meeting_link' => ['nullable', 'url', 'max:255'],
+            'session_date' => ['required', 'date'],
+            'start_time' => ['required'],
+            'end_time' => ['required', 'after:start_time'],
+            'max_participants' => ['required', 'integer', 'min:2', 'max:50'],
+        ]);
+
+        if (in_array($data['session_type'], ['offline', 'hybrid'], true) && empty($data['location'])) {
+            throw ValidationException::withMessages(['location' => 'Lokasi wajib diisi untuk sesi offline/hybrid.']);
+        }
+
+        if (in_array($data['session_type'], ['online', 'hybrid'], true) && empty($data['meeting_link'])) {
+            throw ValidationException::withMessages(['meeting_link' => 'Link meeting wajib diisi untuk sesi online/hybrid.']);
+        }
+
+        $subject = Subject::firstOrCreate([
+            'name' => trim($data['subject']),
+        ]);
+
+        unset($data['subject']);
+
+        return $data + ['subject_id' => $subject->id];
     }
 
     public function index(Request $request)
@@ -42,21 +85,11 @@ class StudySessionController extends Controller
         if ($request->session_type === 'archive') {
             $query->archived();
         } else {
-            $query->active()
-                ->when($request->session_type, fn ($q, $type) => $q->where('session_type', $type));
+            $query->active()->when($request->session_type, fn ($q, $type) => $q->where('session_type', $type));
         }
 
-        $user = $request->user();
-
-        $sessions = $query->orderBy('session_date')->orderBy('start_time')->get()->map(function (StudySession $session) use ($user) {
-            $session->setAttribute('can_edit', $user->can('update', $session));
-            $session->setAttribute('can_delete', $user->can('delete', $session));
-
-            return $session;
-        });
-
         return Inertia::render('StudySessions/Index', [
-            'sessions' => $sessions,
+            'sessions' => $query->orderBy('session_date')->orderBy('start_time')->get(),
             'subjects' => Subject::orderBy('name')->get(),
             'filters' => $request->only(['search', 'session_type']),
         ]);
@@ -64,41 +97,14 @@ class StudySessionController extends Controller
 
     public function create()
     {
-        return Inertia::render('StudySessions/Create', [
-            'subjects' => Subject::orderBy('name')->get(),
-        ]);
+        return Inertia::render('StudySessions/Create');
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'subject' => ['nullable', 'string', 'max:120', 'required_without:subject_id'],
-            'subject_id' => ['nullable', 'integer', 'exists:subjects,id', 'required_without:subject'],
-            'title' => ['required', 'string', 'max:120'],
-            'description' => ['nullable', 'string'],
-            'session_type' => ['required', 'in:offline,online,hybrid'],
-            'location' => ['nullable', 'string', 'max:160'],
-            'meeting_platform' => ['nullable', 'string', 'max:50'],
-            'meeting_link' => ['nullable', 'url', 'max:255'],
-            'session_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'max_participants' => ['required', 'integer', 'min:2', 'max:50'],
-        ]);
-
-        if (in_array($data['session_type'], ['offline', 'hybrid'], true) && empty($data['location'])) {
-            return back()->withErrors(['location' => 'Lokasi wajib diisi untuk sesi offline/hybrid.'])->withInput();
-        }
-
-        if (in_array($data['session_type'], ['online', 'hybrid'], true) && empty($data['meeting_link'])) {
-            return back()->withErrors(['meeting_link' => 'Link meeting wajib diisi untuk sesi online/hybrid.'])->withInput();
-        }
-
-        $subjectId = $this->resolveSubjectId($data);
-        unset($data['subject'], $data['subject_id']);
+        $data = $this->validatedPayload($request);
 
         $session = StudySession::create($data + [
-            'subject_id' => $subjectId,
             'user_id' => $request->user()->id,
             'status' => 'open',
         ]);
@@ -116,37 +122,25 @@ class StudySessionController extends Controller
     {
         self::closeExpiredSessions();
 
-        $studySession->refresh()->load([
-            'subject',
-            'creator',
-            'participants.user',
-            'comments.user',
-            'joinedParticipants',
-        ]);
+        $studySession->refresh()->load(['subject', 'creator', 'participants.user', 'comments.user', 'joinedParticipants']);
 
         return Inertia::render('StudySessions/Show', [
             'session' => $studySession,
-            'comments' => $studySession->comments,
             'isJoined' => $studySession->isJoinedBy($request->user()),
-            'can' => [
-                'edit' => $request->user()->can('update', $studySession),
-                'delete' => $request->user()->can('delete', $studySession),
-            ],
             'conflict' => $this->scheduleConflictPayload($request, $studySession),
         ]);
     }
 
-
-
     public function edit(Request $request, StudySession $studySession)
     {
-        $this->authorize('update', $studySession);
+        $this->ensureCanManage($request, $studySession);
 
         $studySession->load(['subject', 'creator']);
 
         return Inertia::render('StudySessions/Edit', [
             'session' => [
                 'id' => $studySession->id,
+                'user_id' => $studySession->user_id,
                 'subject' => $studySession->subject?->name ?? '',
                 'title' => $studySession->title,
                 'description' => $studySession->description,
@@ -164,42 +158,19 @@ class StudySessionController extends Controller
 
     public function update(Request $request, StudySession $studySession)
     {
-        $this->authorize('update', $studySession);
+        $this->ensureCanManage($request, $studySession);
 
-        $data = $request->validate([
-            'subject' => ['required', 'string', 'max:120'],
-            'title' => ['required', 'string', 'max:120'],
-            'description' => ['nullable', 'string'],
-            'session_type' => ['required', 'in:offline,online,hybrid'],
-            'location' => ['nullable', 'string', 'max:160'],
-            'meeting_platform' => ['nullable', 'string', 'max:50'],
-            'meeting_link' => ['nullable', 'url', 'max:255'],
-            'session_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'max_participants' => ['required', 'integer', 'min:2', 'max:50'],
-        ]);
+        $studySession->update($this->validatedPayload($request));
 
-        if (in_array($data['session_type'], ['offline', 'hybrid'], true) && empty($data['location'])) {
-            return back()->withErrors(['location' => 'Lokasi wajib diisi untuk sesi offline/hybrid.'])->withInput();
-        }
-
-        if (in_array($data['session_type'], ['online', 'hybrid'], true) && empty($data['meeting_link'])) {
-            return back()->withErrors(['meeting_link' => 'Link meeting wajib diisi untuk sesi online/hybrid.'])->withInput();
-        }
-
-        $subjectId = $this->resolveSubjectId($data);
-        unset($data['subject']);
-
-        $studySession->update($data + ['subject_id' => $subjectId]);
-
-        return redirect()->route('study-sessions.show', $studySession)->with('success', 'Study session berhasil diubah.');
+        return redirect()->route('study-sessions.show', $studySession)->with('success', 'Study session berhasil diupdate.');
     }
 
     public function destroy(Request $request, StudySession $studySession)
     {
-        $this->authorize('delete', $studySession);
+        $this->ensureCanManage($request, $studySession);
 
+        $studySession->participants()->delete();
+        $studySession->comments()->delete();
         $studySession->delete();
 
         return redirect()->route('study-sessions.index')->with('success', 'Study session berhasil dihapus.');
@@ -210,28 +181,46 @@ class StudySessionController extends Controller
         return response()->json($this->scheduleConflictPayload($request, $studySession));
     }
 
+    private function scheduleConflictPayload(Request $request, StudySession $session): array
+    {
+        $day = strtolower($session->session_date->format('l'));
+
+        $conflict = CourseSchedule::with('course')
+            ->whereHas('course', fn ($q) => $q->where('user_id', $request->user()->id))
+            ->where('day_of_week', $day)
+            ->where('start_time', '<', $session->end_time)
+            ->where('end_time', '>', $session->start_time)
+            ->orderBy('start_time')
+            ->first();
+
+        return [
+            'has_conflict' => (bool) $conflict,
+            'course' => $conflict ? [
+                'name' => $conflict->course->name,
+                'day_label' => $conflict->day_label,
+                'start_time' => substr($conflict->start_time, 0, 5),
+                'end_time' => substr($conflict->end_time, 0, 5),
+                'room' => $conflict->room,
+            ] : null,
+        ];
+    }
+
     public function join(Request $request, StudySession $studySession)
     {
         self::closeExpiredSessions();
 
         $studySession->refresh();
 
-        if (! $studySession->can_join && ! $studySession->isJoinedBy($request->user())) {
+        if (! $studySession->can_join) {
             return back()->with('error', 'Sesi ini sudah closed/full.');
         }
 
-        $forceJoin = $request->boolean('force_join') || $request->boolean('force');
-        $conflict = $this->scheduleConflictPayload($request, $studySession);
-
-        if (! $forceJoin && $conflict['has_conflict']) {
+        if (! $request->boolean('force_join') && ! $request->boolean('force') && $this->scheduleConflictPayload($request, $studySession)['has_conflict']) {
             return back()->with('warning', 'Session bentrok dengan jadwal mata kuliah lu.');
         }
 
         SessionParticipant::updateOrCreate(
-            [
-                'study_session_id' => $studySession->id,
-                'user_id' => $request->user()->id,
-            ],
+            ['study_session_id' => $studySession->id, 'user_id' => $request->user()->id],
             ['status' => 'joined']
         );
 
@@ -257,9 +246,7 @@ class StudySessionController extends Controller
 
     public function comment(Request $request, StudySession $studySession)
     {
-        $data = $request->validate([
-            'comment' => ['required', 'string', 'max:1000'],
-        ]);
+        $data = $request->validate(['comment' => ['required', 'string', 'max:1000']]);
 
         SessionComment::create([
             'study_session_id' => $studySession->id,
@@ -268,46 +255,5 @@ class StudySessionController extends Controller
         ]);
 
         return back()->with('success', 'Komentar ditambahkan.');
-    }
-
-    private function scheduleConflictPayload(Request $request, StudySession $session): array
-    {
-        $day = strtolower($session->session_date->format('l'));
-
-        $conflict = CourseSchedule::with('course')
-            ->whereHas('course', fn ($query) => $query->where('user_id', $request->user()->id))
-            ->where('day_of_week', $day)
-            ->where('start_time', '<', $session->end_time)
-            ->where('end_time', '>', $session->start_time)
-            ->orderBy('start_time')
-            ->first();
-
-        return [
-            'has_conflict' => (bool) $conflict,
-            'course' => $conflict ? [
-                'id' => $conflict->course?->id,
-                'name' => $conflict->course?->name,
-                'day_label' => $conflict->day_label,
-                'start_time' => substr((string) $conflict->start_time, 0, 5),
-                'end_time' => substr((string) $conflict->end_time, 0, 5),
-                'room' => $conflict->room,
-            ] : null,
-        ];
-    }
-
-    private function resolveSubjectId(array $data): int
-    {
-        if (! empty($data['subject'])) {
-            $name = trim($data['subject']);
-
-            $subject = Subject::firstOrCreate(
-                ['name' => $name],
-                ['slug' => Str::slug($name)]
-            );
-
-            return $subject->id;
-        }
-
-        return (int) $data['subject_id'];
     }
 }

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-
 import Brand from '../components/Brand';
 import UserDropdown from '../components/UserDropdown';
 
@@ -62,15 +61,16 @@ function StaggeredMenu({ open, setOpen, user }) {
         };
     }, [open, setOpen]);
 
+    const isAdmin = isAdminUser(user);
+
     const links = useMemo(() => [
-        ['Dashboard', dashboardHrefFor(user), isAdminUser(user) ? 'Panel admin' : 'Ringkasan belajar lu'],
-        ...(isAdminUser(user) ? [['Admin Dashboard', '/admin/dashboard', 'Statistik & kontrol admin']] : []),
-        ['Study', '/study-sessions', 'Cari atau bikin sesi'],
+        ['Dashboard', dashboardHrefFor(user), isAdmin ? 'Admin control panel' : 'Ringkasan belajar lu'],
+        ['Study', '/study-sessions', isAdmin ? 'Manage semua sesi' : 'Cari atau bikin sesi'],
         ['Schedule', '/schedule', 'Jadwal kuliah semester ini'],
         ['Calendar', '/calendar', 'Kuliah + study session'],
         ['Leaderboard', '/leaderboard', 'XP & badges'],
         ['Develop By', '/develop-by', 'Info developer project'],
-    ], [user]);
+    ], [user, isAdmin]);
 
     const logout = () => {
         setOpen(false);
@@ -83,55 +83,67 @@ function StaggeredMenu({ open, setOpen, user }) {
                 onClick={() => setOpen(false)}
                 className={`fixed inset-0 z-[80] bg-black/45 backdrop-blur-sm transition duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
                 aria-hidden={!open}
+            />
+
+            <aside
+                onClick={(event) => event.stopPropagation()}
+                className={`cm-drawer-panel cm-scrollbar-hidden fixed right-4 top-4 z-[90] max-h-[calc(100vh-2rem)] w-[min(410px,calc(100vw-2rem))] overflow-y-auto transition duration-300 ${open ? 'translate-x-0' : 'translate-x-[110%]'}`}
+                id="campusmate-drawer"
+                aria-label="CampusMate navigation drawer"
             >
-                <aside
-                    onClick={(event) => event.stopPropagation()}
-                    className={`cm-drawer-panel cm-scrollbar-hidden absolute right-4 top-4 max-h-[calc(100vh-2rem)] w-[min(410px,calc(100vw-2rem))] overflow-y-auto transition duration-300 ${open ? 'translate-x-0' : 'translate-x-[110%]'}`}
-                    id="campusmate-drawer" aria-label="CampusMate navigation drawer"
-                >
-                    <div className="mb-5 flex items-start justify-between gap-4">
-                        <div>
-                            <span className="cm-badge">Navigation</span>
-                            <h2 className="mt-3 text-3xl font-black tracking-[-0.06em]">Where to, Pi?</h2>
-                        </div>
-
-                        <button type="button" onClick={() => setOpen(false)} className="cm-btn cm-btn-ghost h-11 w-11 shrink-0 p-0">
-                            ×
-                        </button>
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--cm-subtle)]">
+                            Navigation
+                        </p>
+                        <h2 className="mt-2 text-3xl font-black tracking-[-.06em] text-[var(--cm-text)]">
+                            {isAdmin ? 'Admin Area' : 'Where to, Pi?'}
+                        </h2>
                     </div>
 
-                    <div className="grid gap-2.5">
-                        {links.map(([label, href, caption], index) => (
-                            <Link
-                                key={label}
-                                href={href}
-                                onClick={() => setOpen(false)}
-                                className="group rounded-[22px] border border-[var(--cm-border)] bg-[var(--cm-card)] p-3.5 transition hover:-translate-y-0.5 hover:border-[var(--cm-primary)]"
-                                style={{ transitionDelay: `${open ? index * 30 : 0}ms` }}
-                            >
-                                <div className="flex items-center justify-between gap-4">
-                                    <b>{label}</b>
-                                    <span className="text-right text-sm text-[var(--cm-muted)]">{caption}</span>
+                    <button
+                        type="button"
+                        onClick={() => setOpen(false)}
+                        className="cm-btn cm-btn-ghost h-11 w-11 shrink-0 p-0"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div className="mt-5 grid gap-2.5">
+                    {links.map(([label, href, caption], index) => (
+                        <Link
+                            key={label}
+                            href={href}
+                            onClick={() => setOpen(false)}
+                            className="group rounded-[22px] border border-[var(--cm-border)] bg-[var(--cm-card)] p-3.5 transition hover:-translate-y-0.5 hover:border-[var(--cm-primary)]"
+                            style={{ transitionDelay: `${open ? index * 30 : 0}ms` }}
+                        >
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="font-black text-[var(--cm-text)]">{label}</p>
+                                    <p className="mt-1 text-sm font-bold text-[var(--cm-muted)]">{caption}</p>
                                 </div>
-                                <span className="mt-1.5 block text-[var(--cm-primary)]">→</span>
-                            </Link>
-                        ))}
-                    </div>
+                                <span className="text-xl font-black text-[var(--cm-primary)] transition group-hover:translate-x-1">
+                                    →
+                                </span>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
 
-                    <div className="mt-5 flex flex-wrap gap-3 border-t border-[var(--cm-border)] pt-4">
-                        <ThemeToggle />
-                        {user ? (
-                            <button type="button" onClick={logout} className="cm-btn cm-btn-primary">
-                                Logout
-                            </button>
-                        ) : (
-                            <Link href="/login" className="cm-btn cm-btn-primary" onClick={() => setOpen(false)}>
-                                Login
-                            </Link>
-                        )}
-                    </div>
-                </aside>
-            </div>
+                <div className="mt-5 flex gap-2">
+                    {user ? (
+                        <button type="button" onClick={logout} className="cm-btn cm-btn-ghost w-full">
+                            Logout
+                        </button>
+                    ) : (
+                        <Link href="/login" onClick={() => setOpen(false)} className="cm-btn cm-btn-primary w-full">
+                            Login
+                        </Link>
+                    )}
+                </div>
+            </aside>
         </>
     );
 }
@@ -139,69 +151,70 @@ function StaggeredMenu({ open, setOpen, user }) {
 export default function CampusLayout({ children, title, subtitle }) {
     const { auth } = usePage().props;
     const user = auth?.user || null;
+    const isAdmin = isAdminUser(user);
     const [open, setOpen] = useState(false);
     const dashboardHref = dashboardHrefFor(user);
 
     return (
-        <div className="cm-page">
-            <div className="cm-app-content">
-                <nav className="cm-nav">
-                    <div className="cm-shell flex items-center justify-between gap-4 py-4">
-                        <Brand href={user ? dashboardHref : '/'} />
+        <div className="cm-page min-h-screen">
+            <nav className="cm-shell flex items-center justify-between gap-4 py-5">
+                <Brand href={dashboardHref} />
 
-                        <div className="flex items-center gap-3">
-                            {user ? (
-                                <UserDropdown user={user} profileUrl="/profile" logoutUrl="/logout" />
-                            ) : (
-                                <Link href="/login" className="cm-btn cm-btn-primary text-sm">
-                                    Login
-                                </Link>
-                            )}
-
-                            <button
-                                type="button"
-                                onClick={() => setOpen(true)}
-                                className="cm-menu-trigger"
-                                aria-expanded={open}
-                                aria-controls="campusmate-drawer"
-                            >
-                                <span className="cm-menu-trigger-lines" aria-hidden="true"><i></i><i></i><i></i></span>
-                                <span>Menu</span>
-                            </button>
-                        </div>
-                    </div>
-                </nav>
-
-                <main className="cm-shell py-10">
-                    {(title || subtitle) && (
-                        <header className="mb-8">
-                            {title && <h1 className="text-4xl font-black tracking-[-0.07em] text-[var(--cm-text)] md:text-5xl">{title}</h1>}
-                            {subtitle && <p className="mt-2 max-w-2xl text-[var(--cm-muted)]">{subtitle}</p>}
-                        </header>
+                <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <Link href="/admin/dashboard" className="cm-badge hidden sm:inline-flex">
+                            Admin
+                        </Link>
                     )}
 
-                    {children}
-                </main>
+                    <ThemeToggle />
 
-                <footer className="cm-footer">
-                    <div className="cm-shell grid gap-6 md:grid-cols-3">
-                        <div>
-                            <Brand href={dashboardHref} compact />
-                            <p className="mt-3 text-sm">Platform akademik buat jadwal, sesi belajar, calendar, dan progress belajar.</p>
-                        </div>
-                        <div>
-                            <b className="text-[var(--cm-text)]">Stack</b>
-                            <p className="mt-2 text-sm">Laravel · Inertia React · Vite · Tailwind</p>
-                        </div>
-                        <div className="md:text-right">
-                            <b className="text-[var(--cm-text)]">Copyright</b>
-                            <p className="mt-2 text-sm">© {new Date().getFullYear()} CampusMate. Developed by Pi.</p>
-                        </div>
-                    </div>
-                </footer>
-            </div>
+                    {user ? (
+                        <UserDropdown user={user} />
+                    ) : (
+                        <Link href="/login" className="cm-btn cm-btn-ghost">
+                            Login
+                        </Link>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => setOpen(true)}
+                        className="cm-menu-trigger"
+                        aria-expanded={open}
+                        aria-controls="campusmate-drawer"
+                    >
+                        Menu
+                    </button>
+                </div>
+            </nav>
 
             <StaggeredMenu open={open} setOpen={setOpen} user={user} />
+
+            <main className="cm-shell cm-main-content pb-12 transition-transform duration-300">
+                {(title || subtitle) && (
+                    <header className="mb-7">
+                        {title && (
+                            <h1 className="text-4xl font-black tracking-[-0.07em] text-[var(--cm-text)] md:text-5xl">
+                                {title}
+                            </h1>
+                        )}
+                        {subtitle && (
+                            <p className="mt-3 max-w-3xl text-[var(--cm-muted)]">
+                                {subtitle}
+                            </p>
+                        )}
+                    </header>
+                )}
+
+                {children}
+            </main>
+
+            <footer className="cm-shell grid gap-4 border-t border-[var(--cm-border)] py-8 text-sm text-[var(--cm-muted)] md:grid-cols-3">
+                <p>Platform akademik buat jadwal, sesi belajar, calendar, dan progress belajar.</p>
+                <p>Laravel · Inertia React · Vite · Tailwind</p>
+                <p className="md:text-right">© {new Date().getFullYear()} CampusMate. Developed by Pi.</p>
+            </footer>
         </div>
     );
 }
