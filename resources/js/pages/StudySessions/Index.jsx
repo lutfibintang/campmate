@@ -20,7 +20,7 @@ export default function Index({ sessions = [], filters = {} }) {
             </div>
             <div className="grid gap-4">
                 {sessions.length ? sessions.map((session) => <SessionCard key={session.id} session={session} />) : (
-                    <div className="cm-card cm-panel text-center text-[var(--cm-muted)]">Ga ada session yang cocok. Bikin sendiri aja, jangan nunggu semesta.</div>
+                    <div className="cm-card cm-panel text-center text-[var(--cm-muted)]">Ga ada session yang cocok. Buat Sendiri, jangan nunggu yang ga pasti.</div>
                 )}
             </div>
         </CampusLayout>

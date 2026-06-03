@@ -3,23 +3,186 @@ import { router, useForm } from '@inertiajs/react';
 import CampusLayout from '../../layouts/CampusLayout';
 import { TextArea } from '../../components/TextInput';
 
-export default function Show({ session, comments = [], conflict = null }) {
-    const [showConflict, setShowConflict] = useState(Boolean(conflict));
-    const { data, setData, post, processing, reset } = useForm({ body: '' });
-    const submit = (e) => { e.preventDefault(); post(`/study-sessions/${session.id}/comments`, { onSuccess: () => reset('body') }); };
-    const join = (force = false) => router.post(`/study-sessions/${session.id}/join`, { force });
+export default function Show({ session, comments = [], isJoined = false, conflict = null }) {
+    const [showConflict, setShowConflict] = useState(Boolean(conflict?.has_conflict) && !isJoined);
+    const sessionComments = comments?.length ? comments : (session.comments || []);
+
+    const {
+        data,
+        setData,
+        post,
+        processing,
+        reset,
+        errors,
+    } = useForm({
+        comment: '',
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+
+        post(`/study-sessions/${session.id}/comments`, {
+            preserveScroll: true,
+            onSuccess: () => reset('comment'),
+        });
+    };
+
+    const join = (forceJoin = false) => {
+        router.post(
+            `/study-sessions/${session.id}/join`,
+            { force_join: forceJoin },
+            {
+                preserveScroll: true,
+                onSuccess: () => setShowConflict(false),
+            },
+        );
+    };
+
+    const leave = () => {
+        router.delete(`/study-sessions/${session.id}/leave`, {
+            preserveScroll: true,
+        });
+    };
+
+    const handleJoinClick = () => {
+        if (conflict?.has_conflict) {
+            setShowConflict(true);
+            return;
+        }
+
+        join(false);
+    };
+
+    const conflictCourse = conflict?.course;
+
     return (
-        <CampusLayout title={session.title} subtitle={`${session.subject?.name || 'General'} · ${session.session_date} · ${session.start_time} - ${session.end_time}`}>
-            {showConflict && (
-                <div className="fixed inset-0 z-[90] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
-                    <div className="cm-card cm-panel max-w-md"><div className="text-5xl">⚠️</div><h2 className="mt-4 text-3xl font-black">Jadwal Bentrok!</h2><p className="mt-2 text-[var(--cm-muted)]">Sesi ini bentrok dengan {conflict?.course || 'jadwal kuliah'} {conflict?.start_time} - {conflict?.end_time}.</p><div className="mt-6 flex gap-3"><button className="cm-btn cm-btn-ghost flex-1" onClick={() => setShowConflict(false)}>Batal</button><button className="cm-btn cm-btn-primary flex-1" onClick={() => join(true)}>Tetap Join</button></div></div>
-                </div>
+        <CampusLayout title={session.title} subtitle={session.subject?.name || 'Study Session'}>
+            {showConflict && conflict?.has_conflict && (
+                <section className="cm-card cm-panel mb-6 border border-amber-400/40 bg-amber-500/10">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <div className="text-3xl">⚠️</div>
+                            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-amber-300">
+                                Jadwal Bentrok!
+                            </h2>
+                            <p className="mt-2 text-sm font-semibold text-[var(--cm-muted)]">
+                                Sesi ini bentrok dengan{' '}
+                                <span className="font-black text-[var(--cm-text)]">
+                                    {conflictCourse?.name || 'jadwal kuliah lu'}
+                                </span>{' '}
+                                {conflictCourse?.start_time && conflictCourse?.end_time
+                                    ? `(${conflictCourse.start_time} - ${conflictCourse.end_time})`
+                                    : ''}
+                                {conflictCourse?.room ? ` di ${conflictCourse.room}` : ''}.
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-[var(--cm-subtle)]">
+                                Kalau tetap mau join, klik Tetap Join. Ini bakal memaksa join walau bentrok.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowConflict(false)}
+                                className="cm-btn cm-btn-ghost"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => join(true)}
+                                className="cm-btn cm-btn-primary"
+                            >
+                                Tetap Join
+                            </button>
+                        </div>
+                    </div>
+                </section>
             )}
-            <div className="grid gap-6 lg:grid-cols-[1fr_330px]">
-                <section className="cm-card cm-panel"><span className="cm-badge">{session.session_type}</span><h2 className="mt-5 text-3xl font-black tracking-[-0.06em]">{session.title}</h2><p className="mt-3 text-[var(--cm-muted)]">{session.description || 'Belum ada deskripsi.'}</p><div className="mt-6 grid gap-3 sm:grid-cols-2"><div className="cm-card-compact p-4"><b>Lokasi</b><p className="text-sm text-[var(--cm-muted)]">{session.location || '-'}</p></div><div className="cm-card-compact p-4"><b>Meeting</b><p className="text-sm text-[var(--cm-muted)]">{session.meeting_platform || '-'}</p></div></div></section>
-                <aside className="cm-card cm-panel"><h3 className="text-xl font-black">Join Session</h3><p className="mt-2 text-sm text-[var(--cm-muted)]">Status: {session.status_label || session.status}</p>{session.status === 'open' ? <button className="cm-btn cm-btn-primary mt-5 w-full" onClick={() => conflict ? setShowConflict(true) : join(false)}>Join</button> : <button disabled className="cm-btn cm-btn-ghost mt-5 w-full opacity-60">Closed</button>}</aside>
-            </div>
-            <section className="cm-card cm-panel mt-6"><h2 className="text-2xl font-black">Discussion</h2><form onSubmit={submit} className="mt-4 grid gap-3"><TextArea value={data.body} onChange={(e) => setData('body', e.target.value)} placeholder="Tulis komentar..." /><button disabled={processing} className="cm-btn cm-btn-primary justify-self-end">Send Comment</button></form><div className="mt-6 grid gap-3">{comments.map((c) => <div key={c.id} className="cm-card-compact p-4"><b>{c.user?.name || 'User'}</b><p className="mt-1 text-[var(--cm-muted)]">{c.body}</p></div>)}</div></section>
+
+            <section className="cm-card cm-panel grid gap-5 lg:grid-cols-[1.4fr_.6fr]">
+                <div>
+                    <div className="inline-flex rounded-full border border-[var(--cm-border)] px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-[var(--cm-muted)]">
+                        {session.session_type}
+                    </div>
+
+                    <h1 className="mt-4 text-4xl font-black tracking-[-0.06em]">
+                        {session.title}
+                    </h1>
+
+                    <p className="mt-4 text-[var(--cm-muted)]">
+                        {session.description || 'Belum ada deskripsi.'}
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                        <InfoCard label="Subject" value={session.subject?.name || '-'} />
+                        <InfoCard label="Tanggal" value={new Date(session.session_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric',})} />
+                        <InfoCard label="Jam" value={`${session.start_time.slice(0, 5)} - ${session.end_time.slice(0, 5)}`} />
+                        <InfoCard label="Lokasi" value={session.location || '-'} />
+                        <InfoCard label="Meeting" value={session.meeting_platform || '-'} />
+                        <InfoCard label="Peserta" value={`${session.joined_count || 0}/${session.max_participants}`} />
+                    </div>
+                </div>
+
+                <aside className="cm-card-compact flex flex-col justify-between p-5">
+                    <div>
+                        <h3 className="text-lg font-black tracking-[-0.04em]">Join Session</h3>
+                        <p className="mt-2 text-sm font-semibold text-[var(--cm-muted)]">
+                            Status: {session.status_label || session.status}
+                        </p>
+                    </div>
+
+                    <div className="mt-6 grid gap-2">
+                        {isJoined ? (
+                            <button type="button" onClick={leave} className="cm-btn cm-btn-ghost w-full">
+                                Leave Session
+                            </button>
+                        ) : session.can_join || session.status === 'open' ? (
+                            <button type="button" onClick={handleJoinClick} className="cm-btn cm-btn-primary w-full">
+                                Join
+                            </button>
+                        ) : (
+                            <button type="button" disabled className="cm-btn cm-btn-ghost w-full opacity-60">
+                                Closed
+                            </button>
+                        )}
+                    </div>
+                </aside>
+            </section>
+
+            <section className="cm-card cm-panel mt-6">
+                <h2 className="text-2xl font-black tracking-[-0.05em]">Discussion</h2>
+
+                <form onSubmit={submit} className="mt-4 grid gap-3">
+                    <TextArea
+                        value={data.comment}
+                        onChange={(e) => setData('comment', e.target.value)}
+                        placeholder="Tulis komentar..."
+                    />
+                    {errors.comment && <p className="text-sm font-bold text-[var(--cm-danger)]">{errors.comment}</p>}
+                    <button disabled={processing} className="cm-btn cm-btn-primary justify-self-end">
+                        Send Comment
+                    </button>
+                </form>
+
+                <div className="mt-6 grid gap-3">
+                    {sessionComments.map((comment) => (
+                        <div key={comment.id} className="cm-card-compact p-4">
+                            <b>{comment.user?.name || 'User'}</b>
+                            <p className="mt-1 text-[var(--cm-muted)]">{comment.comment}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
         </CampusLayout>
+    );
+}
+
+function InfoCard({ label, value }) {
+    return (
+        <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-elevated)] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--cm-subtle)]">{label}</p>
+            <p className="mt-2 font-black text-[var(--cm-text)]">{value}</p>
+        </div>
     );
 }

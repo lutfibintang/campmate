@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CourseSchedule;
+use App\Models\StudySession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,101 +16,95 @@ class DashboardController extends Controller
         $user = $request->user();
         $today = strtolower(now()->format('l'));
 
-        $todayClasses = [];
-        if (Schema::hasTable('course_schedules') && Schema::hasTable('courses')) {
-            $todayClasses = DB::table('course_schedules')
-                ->join('courses', 'courses.id', '=', 'course_schedules.course_id')
-                ->where('courses.user_id', $user->id)
-                ->where('course_schedules.day_of_week', $today)
-                ->orderBy('course_schedules.start_time')
-                ->select([
-                    'course_schedules.id',
-                    'course_schedules.room',
-                    'course_schedules.start_time',
-                    'course_schedules.end_time',
-                    'courses.name as course_name',
-                    'courses.code as course_code',
-                ])
-                ->get()
-                ->map(fn ($item) => [
-                    'id' => $item->id,
-                    'room' => $item->room,
-                    'start_time' => substr((string) $item->start_time, 0, 5),
-                    'end_time' => substr((string) $item->end_time, 0, 5),
-                    'course' => [
-                        'name' => $item->course_name,
-                        'code' => $item->course_code,
-                    ],
-                ])
-                ->values();
-        }
-
-        $upcomingSessions = [];
-        if (Schema::hasTable('study_sessions')) {
-            $query = DB::table('study_sessions')
-                ->whereIn('study_sessions.status', ['open', 'full'])
-                ->orderBy('study_sessions.session_date')
-                ->orderBy('study_sessions.start_time')
-                ->limit(5);
-
-            if (Schema::hasTable('subjects')) {
-                $query->leftJoin('subjects', 'subjects.id', '=', 'study_sessions.subject_id')
-                    ->select([
-                        'study_sessions.id',
-                        'study_sessions.title',
-                        'study_sessions.session_date',
-                        'study_sessions.start_time',
-                        'study_sessions.status',
-                        'subjects.name as subject_name',
-                    ]);
-            } else {
-                $query->select([
-                    'study_sessions.id',
-                    'study_sessions.title',
-                    'study_sessions.session_date',
-                    'study_sessions.start_time',
-                    'study_sessions.status',
-                ]);
-            }
-
-            $upcomingSessions = $query->get()->map(fn ($item) => [
-                'id' => $item->id,
-                'title' => $item->title,
-                'session_date' => $item->session_date,
-                'start_time' => substr((string) $item->start_time, 0, 5),
-                'status' => $item->status,
-                'status_label' => ucfirst($item->status),
-                'subject' => [
-                    'name' => $item->subject_name ?? 'General Study',
+        $todayClasses = CourseSchedule::with('course')
+            ->whereHas('course', fn ($query) => $query->where('user_id', $user->id))
+            ->where('day_of_week', $today)
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn (CourseSchedule $schedule) => [
+                'id' => $schedule->id,
+                'room' => $schedule->room,
+                'start_time' => substr((string) $schedule->start_time, 0, 5),
+                'end_time' => substr((string) $schedule->end_time, 0, 5),
+                'course' => [
+                    'name' => $schedule->course?->name,
+                    'code' => $schedule->course?->code,
                 ],
-            ])->values();
-        }
+            ])
+            ->values();
 
-        $joinedCount = 0;
-        if (Schema::hasTable('session_participants')) {
-            $joinedCount = DB::table('session_participants')
-                ->where('user_id', $user->id)
-                ->where('status', 'joined')
-                ->count();
-        }
+        $baseStudySessionQuery = StudySession::query()
+            ->with(['subject', 'creator', 'joinedParticipants'])
+            ->active()
+            ->orderBy('session_date')
+            ->orderBy('start_time');
 
-        $ownedSessions = 0;
-        if (Schema::hasTable('study_sessions')) {
-            $ownedSessions = DB::table('study_sessions')->where('user_id', $user->id)->count();
-        }
+        $pinnedSession = (clone $baseStudySessionQuery)
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereHas('joinedParticipants', fn ($participant) => $participant->where('user_id', $user->id));
+            })
+            ->first();
+
+        // Fallback: kalau user belum pernah join/bikin sesi, pin sesi aktif terdekat.
+        $pinnedSession ??= (clone $baseStudySessionQuery)->first();
+
+        $upcomingSessions = (clone $baseStudySessionQuery)
+            ->limit(6)
+            ->get()
+            ->map(fn (StudySession $session) => $this->studySessionPayload($session))
+            ->values();
+
+        $joinedCount = DB::table('session_participants')
+            ->where('user_id', $user->id)
+            ->where('status', 'joined')
+            ->count();
+
+        $ownedSessions = StudySession::query()
+            ->where('user_id', $user->id)
+            ->count();
 
         return Inertia::render('Dashboard', [
             'stats' => [
                 'name' => $user->name,
                 'role' => $user->role,
-                'upcomingSessions' => count($upcomingSessions),
-                'todayClasses' => count($todayClasses),
+                'upcomingSessions' => $upcomingSessions->count(),
+                'todayClasses' => $todayClasses->count(),
                 'studyHours' => $joinedCount * 2,
+                'ownedSessions' => $ownedSessions,
+                'joinedSessions' => $joinedCount,
             ],
+            'pinnedSession' => $pinnedSession ? $this->studySessionPayload($pinnedSession) : null,
             'todayClasses' => $todayClasses,
             'upcomingSessions' => $upcomingSessions,
             'badges' => $this->badgesFor($joinedCount, $ownedSessions),
         ]);
+    }
+
+    private function studySessionPayload(StudySession $session): array
+    {
+        return [
+            'id' => $session->id,
+            'title' => $session->title,
+            'description' => $session->description,
+            'session_type' => $session->session_type,
+            'session_date' => optional($session->session_date)->format('Y-m-d'),
+            'date_label' => optional($session->session_date)->translatedFormat('d M Y'),
+            'start_time' => substr((string) $session->start_time, 0, 5),
+            'end_time' => substr((string) $session->end_time, 0, 5),
+            'location' => $session->location,
+            'meeting_platform' => $session->meeting_platform,
+            'status' => $session->status,
+            'status_label' => $session->status_label,
+            'joined_count' => $session->joined_count,
+            'max_participants' => $session->max_participants,
+            'subject' => [
+                'name' => $session->subject?->name ?? 'General Study',
+            ],
+            'creator' => [
+                'name' => $session->creator?->name,
+            ],
+        ];
     }
 
     private function badgesFor(int $joinedCount, int $ownedSessions): array
@@ -125,7 +120,7 @@ class DashboardController extends Controller
         if ($joinedCount >= 3) {
             $badges[] = [
                 'name' => 'Active Learner',
-                'icon' => '📚',
+                'icon' => '⚡',
                 'description' => 'Sudah join beberapa sesi belajar.',
             ];
         }
@@ -133,7 +128,7 @@ class DashboardController extends Controller
         if ($ownedSessions >= 1) {
             $badges[] = [
                 'name' => 'Session Host',
-                'icon' => '🧭',
+                'icon' => '🎯',
                 'description' => 'Pernah membuat sesi belajar.',
             ];
         }
