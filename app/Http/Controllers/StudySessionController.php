@@ -46,8 +46,17 @@ class StudySessionController extends Controller
                 ->when($request->session_type, fn ($q, $type) => $q->where('session_type', $type));
         }
 
+        $user = $request->user();
+
+        $sessions = $query->orderBy('session_date')->orderBy('start_time')->get()->map(function (StudySession $session) use ($user) {
+            $session->setAttribute('can_edit', $user->can('update', $session));
+            $session->setAttribute('can_delete', $user->can('delete', $session));
+
+            return $session;
+        });
+
         return Inertia::render('StudySessions/Index', [
-            'sessions' => $query->orderBy('session_date')->orderBy('start_time')->get(),
+            'sessions' => $sessions,
             'subjects' => Subject::orderBy('name')->get(),
             'filters' => $request->only(['search', 'session_type']),
         ]);
@@ -119,8 +128,81 @@ class StudySessionController extends Controller
             'session' => $studySession,
             'comments' => $studySession->comments,
             'isJoined' => $studySession->isJoinedBy($request->user()),
+            'can' => [
+                'edit' => $request->user()->can('update', $studySession),
+                'delete' => $request->user()->can('delete', $studySession),
+            ],
             'conflict' => $this->scheduleConflictPayload($request, $studySession),
         ]);
+    }
+
+
+
+    public function edit(Request $request, StudySession $studySession)
+    {
+        $this->authorize('update', $studySession);
+
+        $studySession->load(['subject', 'creator']);
+
+        return Inertia::render('StudySessions/Edit', [
+            'session' => [
+                'id' => $studySession->id,
+                'subject' => $studySession->subject?->name ?? '',
+                'title' => $studySession->title,
+                'description' => $studySession->description,
+                'session_type' => $studySession->session_type,
+                'location' => $studySession->location,
+                'meeting_platform' => $studySession->meeting_platform,
+                'meeting_link' => $studySession->meeting_link,
+                'session_date' => optional($studySession->session_date)->format('Y-m-d'),
+                'start_time' => substr((string) $studySession->start_time, 0, 5),
+                'end_time' => substr((string) $studySession->end_time, 0, 5),
+                'max_participants' => $studySession->max_participants,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, StudySession $studySession)
+    {
+        $this->authorize('update', $studySession);
+
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:120'],
+            'title' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string'],
+            'session_type' => ['required', 'in:offline,online,hybrid'],
+            'location' => ['nullable', 'string', 'max:160'],
+            'meeting_platform' => ['nullable', 'string', 'max:50'],
+            'meeting_link' => ['nullable', 'url', 'max:255'],
+            'session_date' => ['required', 'date'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'max_participants' => ['required', 'integer', 'min:2', 'max:50'],
+        ]);
+
+        if (in_array($data['session_type'], ['offline', 'hybrid'], true) && empty($data['location'])) {
+            return back()->withErrors(['location' => 'Lokasi wajib diisi untuk sesi offline/hybrid.'])->withInput();
+        }
+
+        if (in_array($data['session_type'], ['online', 'hybrid'], true) && empty($data['meeting_link'])) {
+            return back()->withErrors(['meeting_link' => 'Link meeting wajib diisi untuk sesi online/hybrid.'])->withInput();
+        }
+
+        $subjectId = $this->resolveSubjectId($data);
+        unset($data['subject']);
+
+        $studySession->update($data + ['subject_id' => $subjectId]);
+
+        return redirect()->route('study-sessions.show', $studySession)->with('success', 'Study session berhasil diubah.');
+    }
+
+    public function destroy(Request $request, StudySession $studySession)
+    {
+        $this->authorize('delete', $studySession);
+
+        $studySession->delete();
+
+        return redirect()->route('study-sessions.index')->with('success', 'Study session berhasil dihapus.');
     }
 
     public function conflict(Request $request, StudySession $studySession)

@@ -63,7 +63,8 @@ function StaggeredMenu({ open, setOpen, user }) {
     }, [open, setOpen]);
 
     const links = useMemo(() => [
-        ['Dashboard', dashboardHrefFor(user), 'Ringkasan belajar lu'],
+        ['Dashboard', dashboardHrefFor(user), isAdminUser(user) ? 'Panel admin' : 'Ringkasan belajar lu'],
+        ...(isAdminUser(user) ? [['Admin Dashboard', '/admin/dashboard', 'Statistik & kontrol admin']] : []),
         ['Study', '/study-sessions', 'Cari atau bikin sesi'],
         ['Schedule', '/schedule', 'Jadwal kuliah semester ini'],
         ['Calendar', '/calendar', 'Kuliah + study session'],

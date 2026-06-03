@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import CampusLayout from '../../layouts/CampusLayout';
 import { TextArea } from '../../components/TextInput';
 
-export default function Show({ session, comments = [], isJoined = false, conflict = null }) {
+export default function Show({ session, comments = [], isJoined = false, conflict = null, can = {} }) {
     const [showConflict, setShowConflict] = useState(Boolean(conflict?.has_conflict) && !isJoined);
     const sessionComments = comments?.length ? comments : (session.comments || []);
 
@@ -40,6 +40,15 @@ export default function Show({ session, comments = [], isJoined = false, conflic
 
     const leave = () => {
         router.delete(`/study-sessions/${session.id}/leave`, {
+            preserveScroll: true,
+        });
+    };
+
+
+    const destroy = () => {
+        if (!window.confirm(`Hapus study session "${session.title}"?`)) return;
+
+        router.delete(`/study-sessions/${session.id}`, {
             preserveScroll: true,
         });
     };
@@ -106,9 +115,26 @@ export default function Show({ session, comments = [], isJoined = false, conflic
                         {session.session_type}
                     </div>
 
-                    <h1 className="mt-4 text-4xl font-black tracking-[-0.06em]">
-                        {session.title}
-                    </h1>
+                    <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+                        <h1 className="text-4xl font-black tracking-[-0.06em]">
+                            {session.title}
+                        </h1>
+
+                        {(can.edit || can.delete) && (
+                            <div className="flex flex-wrap gap-2">
+                                {can.edit && (
+                                    <Link href={`/study-sessions/${session.id}/edit`} className="cm-btn cm-btn-ghost">
+                                        Edit
+                                    </Link>
+                                )}
+                                {can.delete && (
+                                    <button type="button" onClick={destroy} className="cm-btn cm-btn-ghost text-[var(--cm-danger)]">
+                                        Delete
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <p className="mt-4 text-[var(--cm-muted)]">
                         {session.description || 'Belum ada deskripsi.'}
@@ -118,7 +144,6 @@ export default function Show({ session, comments = [], isJoined = false, conflic
                         <InfoCard label="Subject" value={session.subject?.name || '-'} />
                         <InfoCard label="Tanggal" value={new Date(session.session_date).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric',})} />
                         <InfoCard label="Jam" value={`${session.start_time.slice(0, 5)} - ${session.end_time.slice(0, 5)}`} />
-                        <InfoCard label="Lokasi" value={session.location || '-'} />
                         <InfoCard label="Meeting" value={session.meeting_platform || '-'} />
                         <InfoCard label="Peserta" value={`${session.joined_count || 0}/${session.max_participants}`} />
                     </div>
