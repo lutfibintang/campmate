@@ -1,9 +1,5 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import React from 'react';
+import { Link, useForm } from '@inertiajs/react';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -13,108 +9,94 @@ export default function Register() {
         password_confirmation: '',
     });
 
-    const submit = (e) => {
-        e.preventDefault();
-
-        post(route('register'), {
+    const submit = (event) => {
+        event.preventDefault();
+        post('/register', {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
 
     return (
-        <GuestLayout>
-            <Head title="Register" />
-
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="name" value="Name" />
-
-                    <TextInput
-                        id="name"
-                        name="name"
+        <AuthShell title="Buat Akun" subtitle="Register otomatis jadi user biasa.">
+            <form onSubmit={submit} className="space-y-4">
+                <Field label="Nama" error={errors.name}>
+                    <input
+                        type="text"
                         value={data.name}
-                        className="mt-1 block w-full"
-                        autoComplete="name"
-                        isFocused={true}
                         onChange={(e) => setData('name', e.target.value)}
-                        required
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
+                        autoFocus
                     />
+                </Field>
 
-                    <InputError message={errors.name} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
+                <Field label="Email" error={errors.email}>
+                    <input
                         type="email"
-                        name="email"
                         value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
                         onChange={(e) => setData('email', e.target.value)}
-                        required
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
                     />
+                </Field>
 
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
-                        id="password"
+                <Field label="Password" error={errors.password}>
+                    <input
                         type="password"
-                        name="password"
                         value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
                         onChange={(e) => setData('password', e.target.value)}
-                        required
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
                     />
+                </Field>
 
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Confirm Password"
-                    />
-
-                    <TextInput
-                        id="password_confirmation"
+                <Field label="Konfirmasi Password">
+                    <input
                         type="password"
-                        name="password_confirmation"
                         value={data.password_confirmation}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
-                        required
+                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                        className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
                     />
+                </Field>
 
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                    />
-                </div>
+                <button
+                    disabled={processing}
+                    className="w-full rounded-2xl bg-[var(--primary)] px-5 py-3 font-black text-white disabled:opacity-60"
+                >
+                    {processing ? 'Membuat akun...' : 'Register'}
+                </button>
 
-                <div className="mt-4 flex items-center justify-end">
-                    <Link
-                        href={route('login')}
-                        className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >
-                        Already registered?
+                <p className="text-center text-sm text-[var(--muted)]">
+                    Udah punya akun?{' '}
+                    <Link href="/login" className="font-black text-[var(--primary)]">
+                        Login
                     </Link>
-
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Register
-                    </PrimaryButton>
-                </div>
+                </p>
             </form>
-        </GuestLayout>
+        </AuthShell>
+    );
+}
+
+function Field({ label, error, children }) {
+    return (
+        <label className="block space-y-2">
+            <span className="text-sm font-black">{label}</span>
+            {children}
+            {error && <p className="text-sm font-bold text-red-500">{error}</p>}
+        </label>
+    );
+}
+
+function AuthShell({ title, subtitle, children }) {
+    return (
+        <div className="grid min-h-screen place-items-center bg-[var(--bg)] px-4 text-[var(--text)]">
+            <div className="w-full max-w-md rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-xl shadow-black/10">
+                <Link href="/" className="mb-8 block text-center text-2xl font-black">
+                    CampusMate
+                </Link>
+                <div className="mb-6 text-center">
+                    <h1 className="text-3xl font-black">{title}</h1>
+                    <p className="mt-2 text-sm text-[var(--muted)]">{subtitle}</p>
+                </div>
+                {children}
+            </div>
+        </div>
     );
 }
