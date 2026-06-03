@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 
-export default function DebouncedSearch({ value = '', onChange, placeholder = 'Search...' }) {
-    const [local, setLocal] = useState(value);
-    useEffect(() => setLocal(value), [value]);
+export default function DebouncedSearch({ initial = '', onSearch, placeholder = 'Search anything...' }) {
+    const [value, setValue] = useState(initial || '');
+
     useEffect(() => {
-        const t = setTimeout(() => onChange?.(local), 350);
-        return () => clearTimeout(t);
-    }, [local]);
+        const timer = setTimeout(() => onSearch?.(value), 350);
+        return () => clearTimeout(timer);
+    }, [value]);
 
     return (
-        <input
-            value={local}
-            onChange={(e) => setLocal(e.target.value)}
-            placeholder={placeholder}
-            className="cm-input cm-focus-ring"
-        />
+        <div className="relative">
+            <input
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={placeholder}
+                className="cm-input pr-11"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--cm-subtle)]">⌕</span>
+        </div>
     );
 }

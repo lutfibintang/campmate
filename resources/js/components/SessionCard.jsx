@@ -1,29 +1,39 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 
 export default function SessionCard({ session }) {
+    const status = session.status_label || session.status || 'open';
+    const full = Number(session.participants_count || session.joined_participants_count || 0);
+    const max = Number(session.max_participants || 1);
+    const percent = Math.min(100, Math.round((full / max) * 100));
+
     return (
-        <Link href={`/study-sessions/${session.id}`} className="cm-card-compact cm-spotlight block p-5 transition hover:-translate-y-1 hover:border-[var(--cm-primary)]" onMouseMove={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
-            e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
-        }}>
-            <div className="relative z-10 flex items-start justify-between gap-4">
-                <div>
-                    <span className={`cm-badge cm-status-${session.status_label?.toLowerCase()}`}>{session.status_label}</span>
-                    <h3 className="mt-4 text-xl font-black text-[var(--cm-text)]">{session.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--cm-muted)]">{session.description || 'Belajar bareng tanpa drama deadline.'}</p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="cm-badge">{session.subject?.name || 'Subject'}</span>
-                        <span className="cm-badge">{session.session_type}</span>
+        <div className="cm-card-compact cm-spotlight p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="cm-badge">{session.session_type || 'offline'}</span>
+                        <span className={`cm-badge cm-status-${String(status).toLowerCase()}`}>{status}</span>
+                    </div>
+                    <h3 className="mt-3 text-xl font-black tracking-[-0.04em] text-[var(--cm-text)]">{session.title}</h3>
+                    <p className="mt-1 text-sm text-[var(--cm-muted)]">
+                        {session.subject?.name || 'General'} · {session.session_date || '-'} · {session.start_time || '-'} - {session.end_time || '-'}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--cm-muted)]">{session.location || session.meeting_platform || 'Location TBD'}</p>
+                </div>
+                <div className="w-full sm:w-52">
+                    <div className="h-2 rounded-full bg-[var(--cm-card-soft)]">
+                        <div className="h-2 rounded-full bg-[var(--cm-primary)]" style={{ width: `${percent}%` }} />
+                    </div>
+                    <p className="mt-2 text-right text-sm font-bold text-[var(--cm-muted)]">{full}/{max} peserta</p>
+                    <div className="mt-3 flex gap-2">
+                        <Link href={`/study-sessions/${session.id}`} className="cm-btn cm-btn-soft flex-1 text-sm">Detail</Link>
+                        {status === 'open' && (
+                            <button type="button" onClick={() => router.post(`/study-sessions/${session.id}/join`)} className="cm-btn cm-btn-primary flex-1 text-sm">Join</button>
+                        )}
                     </div>
                 </div>
-                <div className="text-right text-sm font-bold text-[var(--cm-muted)]">
-                    <p>{session.session_date}</p>
-                    <p>{session.start_time} - {session.end_time}</p>
-                    <p>{session.joined_count}/{session.max_participants} peserta</p>
-                </div>
             </div>
-        </Link>
+        </div>
     );
 }
