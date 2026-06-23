@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRightLong } from '@fortawesome/free-solid-svg-icons';
+import { faUser } from '@fortawesome/free-solid-svg-icons';
 
 function getInitials(name = 'User') {
     return String(name)
@@ -87,15 +91,15 @@ export default function UserDropdown({ user = null, profileUrl = '/profile', log
 
                 <div className="p-2">
                     <Link href={profileUrl} onClick={() => setOpen(false)} className="cm-dropdown-item" role="menuitem">
-                        <span className="cm-menu-icon">👤</span>
+                        <span className="cm-menu-icon"><FontAwesomeIcon icon={faUser} /></span>
                         <span className="flex-1">Profile</span>
-                        <span className="text-[var(--cm-subtle)]">→</span>
+                        <span className="text-[var(--cm-subtle)]"><FontAwesomeIcon icon={faArrowRightLong} /></span>
                     </Link>
 
                     <button type="button" onClick={logout} className="cm-dropdown-item cm-dropdown-item-danger" role="menuitem">
                         <span className="cm-menu-icon">↪</span>
                         <span className="flex-1">Logout</span>
-                        <span className="text-[var(--cm-danger)]">×</span>
+                        <span className="text-[var(--cm-danger)]"><FontAwesomeIcon icon={faXmark} /></span>
                     </button>
                 </div>
             </div>

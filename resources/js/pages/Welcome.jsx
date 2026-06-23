@@ -113,23 +113,20 @@ export default function Welcome({ stats = {}, liveSession = null, authState = {}
                     <span className="cm-badge">Academic Companion Platform</span>
 
                     <h1 className="mx-auto mt-6 w-full max-w-[980px] overflow-visible px-4 text-center text-[clamp(3.4rem,6vw,6.8rem)] font-black leading-[.92] tracking-[-0.065em] sm:px-6 lg:max-w-[1080px]">
-                            <span className="block bg-gradient-to-r from-[var(--cm-primary)] via-[#f4f7d8] to-[var(--cm-text)] bg-clip-text text-transparent">
-                                CampusMate
+                            <div className="block bg-gradient-to-r from-[var(--cm-primary)] via-[#f4f7d8] to-[var(--cm-text)] bg-clip-text text-transparent">
+                                CampMate
+                            </div>
+                            <span className="block text-[var(--cm-text)]">
+                                bikin belajar kampus
                             </span>
                             <span className="block text-[var(--cm-text)]">
-                                bikin belajar
+                                lebih rapi
                             </span>
-                            <span className="block text-[var(--cm-text)]">
-                                kampus lebih
-                            </span>
-                            <span className="block text-[var(--cm-text)]">
-                                rapi.
-                            </span>.
-                                            </h1>
+                    </h1>
 
                     <p className="mx-auto mt-7 max-w-3xl text-xl leading-8 text-[var(--cm-muted)]">
-                        Kelola jadwal kuliah semester ini, bikin study session, cek bentrok jadwal, lihat calendar,
-                        dan join sesi belajar tanpa UI yang kelihatan kayak tugas CRUD belum mandi.
+                        Kelola jadwal kuliah semester ini, bikin study session, lihat calendar,
+                        dan join sesi belajar bareng teman sehobi bukan sehati.
                     </p>
 
                     <div className="mt-8 flex flex-wrap justify-center gap-3">

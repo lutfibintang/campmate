@@ -2,6 +2,14 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import CampusLayout from '../layouts/CampusLayout';
 import StatCard from '../components/StatCard';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faBook,
+    faHandshake,
+    faBullseye,
+} from '@fortawesome/free-solid-svg-icons';
+import { faCalendarDays } from '@fortawesome/free-regular-svg-icons';
+
 
 function SessionMeta({ label, value }) {
     return (
@@ -55,10 +63,29 @@ export default function Dashboard({ stats = {}, pinnedSession = null, todayClass
             subtitle="Dashboard sekarang fokus ke Study Sessions dulu. Jadwal tetap ada, tapi bukan jadi tokoh utama yang nyolong spotlight."
         >
             <section className="grid gap-4 md:grid-cols-4">
-                <StatCard label="Upcoming Sessions" value={stats.upcomingSessions ?? 0} icon="📚" />
-                <StatCard label="Joined Sessions" value={stats.joinedSessions ?? 0} icon="🤝" />
-                <StatCard label="Owned Sessions" value={stats.ownedSessions ?? 0} icon="🎯" />
-                <StatCard label="Today Classes" value={stats.todayClasses ?? 0} icon="🗓️" />
+                <StatCard
+                    label="Upcoming Sessions"
+                    value={stats.upcomingSessions ?? 0}
+                    icon={<FontAwesomeIcon icon={faBook} />}
+                />
+
+                <StatCard
+                    label="Joined Sessions"
+                    value={stats.joinedSessions ?? 0}
+                    icon={<FontAwesomeIcon icon={faHandshake} />}
+                />
+
+                <StatCard
+                    label="Owned Sessions"
+                    value={stats.ownedSessions ?? 0}
+                    icon={<FontAwesomeIcon icon={faBullseye} />}
+                />
+
+                <StatCard
+                    label="Today Classes"
+                    value={stats.todayClasses ?? 0}
+                    icon={<FontAwesomeIcon icon={faCalendarDays} />}
+                />
             </section>
 
             <section className="mt-7">

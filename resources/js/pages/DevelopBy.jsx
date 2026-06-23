@@ -1,6 +1,9 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 import CampusLayout from '../layouts/CampusLayout';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBook } from '@fortawesome/free-solid-svg-icons';
+import { faCalendar } from '@fortawesome/free-solid-svg-icons';
 
 const techStack = [
     'Laravel',
@@ -15,17 +18,17 @@ const features = [
     {
         title: 'Study Sessions',
         description: 'User bisa bikin sesi belajar, join session, dan cek bentrok dengan jadwal kuliah.',
-        icon: '📚',
+        icon: <FontAwesomeIcon icon={faBook} />,
     },
     {
         title: 'Schedule Manager',
         description: 'User bisa nyusun jadwal kuliah pribadi tanpa ikut kebaca user lain.',
-        icon: '🗓️',
+        icon: <FontAwesomeIcon icon={faCalendar} />,
     },
     {
         title: 'Calendar View',
         description: 'Kalender mingguan buat mantau jadwal dan sesi belajar biar hidup ga chaos.',
-        icon: '📅',
+        icon: <FontAwesomeIcon icon={faCalendar} />,
     },
 ];
 
@@ -57,12 +60,12 @@ export default function DevelopBy() {
 
                     <div className="mt-5 flex items-center gap-4">
                         <div className="grid h-20 w-20 place-items-center rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-primary)]/15 text-3xl font-black text-[var(--cm-primary)]">
-                            PI
+                            Pi
                         </div>
 
                         <div>
                             <h2 className="text-2xl font-black tracking-[-0.04em] text-[var(--cm-text)]">
-                                Pi
+                                Lutfi Bintang
                             </h2>
                             <p className="text-sm font-bold text-[var(--cm-muted)]">
                                 Full-Stack Developer

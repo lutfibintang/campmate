@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Brand from '../components/Brand';
 import UserDropdown from '../components/UserDropdown';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRightLong } from '@fortawesome/free-solid-svg-icons';
 
 const ADMIN_EMAILS = [
     'admin@campusmate.test',
@@ -97,7 +100,7 @@ function StaggeredMenu({ open, setOpen, user }) {
                             Navigation
                         </p>
                         <h2 className="mt-2 text-3xl font-black tracking-[-.06em] text-[var(--cm-text)]">
-                            {isAdmin ? 'Admin Area' : 'Where to, Pi?'}
+                            {isAdmin ? 'Admin Area' : 'Where to'}
                         </h2>
                     </div>
 
@@ -106,7 +109,7 @@ function StaggeredMenu({ open, setOpen, user }) {
                         onClick={() => setOpen(false)}
                         className="cm-btn cm-btn-ghost h-11 w-11 shrink-0 p-0"
                     >
-                        ×
+                        <FontAwesomeIcon icon={faXmark} />
                     </button>
                 </div>
 
@@ -125,7 +128,7 @@ function StaggeredMenu({ open, setOpen, user }) {
                                     <p className="mt-1 text-sm font-bold text-[var(--cm-muted)]">{caption}</p>
                                 </div>
                                 <span className="text-xl font-black text-[var(--cm-primary)] transition group-hover:translate-x-1">
-                                    →
+                                    <FontAwesomeIcon icon={faArrowRightLong} />
                                 </span>
                             </div>
                         </Link>

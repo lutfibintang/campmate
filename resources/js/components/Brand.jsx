@@ -8,7 +8,7 @@ export default function Brand({ href = '/', compact = false }) {
                 ✦
             </span>
             <span className="leading-tight">
-                <b className="block text-lg font-black tracking-[-0.04em] text-[var(--cm-text)]">CampusMate</b>
+                <b className="block text-lg font-black tracking-[-0.04em] text-[var(--cm-text)]">CampMate</b>
                 {!compact && <small className="font-bold text-[var(--cm-muted)]">Study smarter. Schedule cleaner.</small>}
             </span>
         </Link>
